@@ -1,0 +1,203 @@
+    --[[ Dead Route [Alpha] ]]--
+
+    --Gui
+    local Repository = "https://raw.githubusercontent.com/DarkDoorsKing/Gui/main/"
+
+    local Library = loadstring(game:HttpGet(Repository .. "Library"))()
+    local ThemeManager = loadstring(game:HttpGet(Repository .. "ThemeManager"))()
+    local SaveManager = loadstring(game:HttpGet(Repository .. "SaveManager"))()
+
+    Library:Notify('BlackKing : Loading Gui')
+    wait(.5)
+    Library:Notify('Welcome to BlackKing  ' .. game.Players.LocalPlayer.DisplayName)
+
+    Library:Notify('Blackking Dead Route [Alpha]!')
+
+    local Sound = Instance.new("Sound")
+    Sound.Parent = game.SoundService
+    Sound.SoundId = "rbxassetid://4590662766"
+    Sound.Volume = 5
+    Sound.PlayOnRemove = true
+    Sound:Destroy()
+
+    local Window = Library:CreateWindow({
+        Title = "Blackking - Client | Dead Route [Alpha] | ".. game.Players.LocalPlayer.DisplayName ,
+        Center = true,
+        AutoShow = true,
+        ShowCustomCursor = true,
+        TabPadding = 0,
+        MenuFadeTime = 0.2
+    })
+
+local Tabs = {
+    Main = Window:AddTab('Main'),
+}
+
+local LeftGroupBox = Tabs.Main:AddLeftGroupbox('LocalPlayer')
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    pcall(function()
+task.spawn(function()
+if _G.SpeedHack then
+game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = SelectBoots
+end
+end)
+
+task.spawn(function()
+        if _G.FieldOfView then
+game:GetService("Workspace").Camera.FieldOfView = FieldOfViewe
+        end
+end)
+
+        end)
+end)
+
+LeftGroupBox:AddSlider('MySliderspeed', {
+    Text = 'Speed Boots ',
+    Default = 75,
+    Min = 0,
+    Max = 150,
+    Rounding = 0,
+    Compact = true,
+    Callback = function(SelectBootsez)
+SelectBoots =  SelectBootsez
+    end
+})
+
+LeftGroupBox:AddSlider('MySlider', {
+    Text = 'Field of View ',
+    Default = 70,
+    Min = 70,
+    Max = 120,
+    Rounding = 0,
+    Compact = true,
+    Callback = function(FieldOfViewse)
+    FieldOfViewe = FieldOfViewse
+    end
+})
+local FieldOfViewe = 70
+local SelectBoots = 75
+
+LeftGroupBox:AddToggle('Speedhack', {
+    Text = 'Enable Speed Boots',
+    Default = false, -- Default value (true / false)
+    Tooltip = 'Speed Boots', -- Information shown when you hover over the toggle
+    Callback = function(SpeedHackem)
+_G.SpeedHack = SpeedHackem
+    end
+})
+LeftGroupBox:AddToggle('Fov', {
+    Text = 'Enable Field of View',
+    Default = false, -- Default value (true / false)
+    Tooltip = 'Field of View Hack', -- Information shown when you hover over the toggle
+    Callback = function(FieldOfViews)
+_G.FieldOfView = FieldOfViews
+
+if _G.FieldOfView == false then
+game:GetService("Workspace").Camera.FieldOfView = 70
+end
+    end
+})
+
+
+local Main = Tabs.Main:AddRightGroupbox('Main')
+_G.Items_A = 1
+_G.Items_S = 'Bandage'
+
+Main:AddDropdown('', {
+    Values = {'Bandage','Torch','Code','Dynamite','Fuel','Landmine','Mine Detonator','Shield','Shovel','Shotgun','Revolver','Minigun','Gold Rifle',},
+    Default = 1, -- number index of the value / string
+    Multi = false, -- true / false, allows multiple choices to be selected
+    Text = 'Items',
+    Callback = function(Items_Ss)
+    _G.Items_S =Items_Ss
+    end
+})
+
+Main:AddSlider('AmountItems', {
+    Text = 'Items Amount ',
+    Default = 1,
+    Min = 1,
+    Max = 100,
+    Rounding = 0,
+    Compact = true,
+    Callback = function(Items_As)
+_G.Items_A =  Items_As
+    end
+})
+
+Main:AddButton({
+    Text = 'Get Item',
+    Func = function()
+    if game.Workspace.Objects:FindFirstChild("Bandage") then
+        for i = 1,_G.Items_A do
+            local args = {
+                _G.Items_S,
+                game.workspace.Objects.Bandage
+            }
+            game:GetService("ReplicatedStorage"):WaitForChild("Configuration"):WaitForChild("Remotes"):WaitForChild("PickupItem"):FireServer(unpack(args))
+        end
+    else
+        Library:Notify('You Need to Drop Bandage!')
+    end
+
+    end,
+    DoubleClick = false,
+})
+
+local KillAura = Tabs.Main:AddRightGroupbox('Enemies')
+
+KillAura:AddToggle('KillAura', {
+    Text = 'Kill Aura',
+    Default = false, -- Default value (true / false)
+    Callback = function(KillAuras)
+    _G.KillAura = KillAuras
+
+    task.spawn(function()
+        while _G.KillAura do wait()
+            pcall(function()
+                for i,v in pairs(game:GetService("Workspace").Zombies:GetChildren()) do
+                    if v.ClassName == "Model" then
+                    v.Humanoid.Health = 0
+                    v.Humanoid.RigType = "R6"
+                     end
+                 end
+            end)
+         end
+    end)
+
+    end
+})
+
+local Tabs = {
+    ['UI Settings'] = Window:AddTab('UI Settings'),
+}
+
+Library:OnUnload(function()
+    print('Unloaded!')
+    Library.Unloaded = true
+end)
+
+-- UI Settings
+local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
+
+MenuGroup:AddButton('Unload', function() Library:Unload() end)
+MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'RightControl', NoUI = true, Text = 'Menu keybind' })
+
+Library.ToggleKeybind = Options.MenuKeybind -- Allows you to have a custom keybind for the menu
+
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+
+SaveManager:IgnoreThemeSettings()
+
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
+
+ThemeManager:SetFolder('MyScriptHub')
+SaveManager:SetFolder('MyScriptHub/specific-game')
+
+SaveManager:BuildConfigSection(Tabs['UI Settings'])
+
+ThemeManager:ApplyToTab(Tabs['UI Settings'])
+
+SaveManager:LoadAutoloadConfig()
