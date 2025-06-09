@@ -1,0 +1,497 @@
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local collectionService = game:GetService("CollectionService")
+local players = game:GetService("Players")
+local tweenService = game:GetService("TweenService")
+local runService = game:GetService("RunService")
+
+local localPlayer = players.LocalPlayer
+
+local hatchFunction = getupvalue(getupvalue(getconnections(replicatedStorage.GameEvents.PetEggService.OnClientEvent)[1].Function, 1), 2)
+local eggModels = getupvalue(hatchFunction, 1)
+local eggPets = getupvalue(hatchFunction, 2)
+
+local espCache = {}
+local activeEggs = {}
+
+-- Futuristische Farbpalette
+local Colors = {
+    Neon = {
+        Cyan = Color3.fromRGB(0, 255, 255),
+        Purple = Color3.fromRGB(138, 43, 226),
+        Pink = Color3.fromRGB(255, 20, 147),
+        Green = Color3.fromRGB(57, 255, 20),
+        Orange = Color3.fromRGB(255, 140, 0),
+        Blue = Color3.fromRGB(30, 144, 255)
+    },
+    Dark = {
+        Background = Color3.fromRGB(8, 12, 24),
+        Card = Color3.fromRGB(15, 20, 35),
+        Border = Color3.fromRGB(25, 35, 50)
+    },
+    Status = {
+        Waiting = Color3.fromRGB(255, 193, 7),
+        Ready = Color3.fromRGB(40, 167, 69),
+        Error = Color3.fromRGB(220, 53, 69)
+    }
+}
+
+local function getObjectFromId(objectId)
+    for eggModel in eggModels do
+        if eggModel:GetAttribute("OBJECT_UUID") ~= objectId then continue end
+        return eggModel
+    end
+end
+
+local function CreateHolographicEffect(parent)
+    -- Holographic shimmer effect
+    local shimmer = Instance.new("Frame")
+    shimmer.Name = "HolographicShimmer"
+    shimmer.Parent = parent
+    shimmer.Size = UDim2.new(0, 100, 1, 0)
+    shimmer.Position = UDim2.new(-0.5, 0, 0, 0)
+    shimmer.BackgroundColor3 = Colors.Neon.Cyan
+    shimmer.BackgroundTransparency = 0.7
+    shimmer.BorderSizePixel = 0
+    shimmer.ZIndex = 10
+
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(0.5, Colors.Neon.Cyan),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
+    }
+    gradient.Rotation = 25
+    gradient.Parent = shimmer
+
+    -- Animate shimmer
+    local shimmerTween = tweenService:Create(shimmer, 
+        TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
+        {Position = UDim2.new(1.5, 0, 0, 0)}
+    )
+    shimmerTween:Play()
+
+    return shimmer
+end
+
+local function CreateNeonGlow(object, color)
+    local glow = Instance.new("SelectionBox")
+    glow.Name = "NeonGlow"
+    glow.Adornee = object
+    glow.Color3 = color
+    glow.LineThickness = 0.2
+    glow.Transparency = 0.3
+    glow.Parent = object
+
+    -- Pulsing glow effect
+    local glowTween = tweenService:Create(glow,
+        TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {Transparency = 0.8}
+    )
+    glowTween:Play()
+
+    return glow
+end
+
+local function CreateFuturisticEspGui(object, eggName, petName)
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "FuturisticPetEggESP"
+    billboard.Adornee = object:FindFirstChildWhichIsA("BasePart") or object.PrimaryPart or object
+    billboard.Size = UDim2.new(0, 320, 0, 120)
+    billboard.StudsOffset = Vector3.new(0, 4, 0)
+    billboard.AlwaysOnTop = true
+    billboard.LightInfluence = 0
+
+    -- Main Container
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Parent = billboard
+    mainFrame.Size = UDim2.new(1, 0, 1, 0)
+    mainFrame.BackgroundColor3 = Colors.Dark.Background
+    mainFrame.BackgroundTransparency = 0.15
+    mainFrame.BorderSizePixel = 0
+    mainFrame.ClipsDescendants = true
+
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 16)
+    mainCorner.Parent = mainFrame
+
+    -- Outer Glow
+    local outerStroke = Instance.new("UIStroke")
+    outerStroke.Color = Colors.Neon.Cyan
+    outerStroke.Thickness = 3
+    outerStroke.Transparency = 0.4
+    outerStroke.Parent = mainFrame
+
+    -- Inner Border
+    local innerBorder = Instance.new("Frame")
+    innerBorder.Parent = mainFrame
+    innerBorder.Size = UDim2.new(1, -6, 1, -6)
+    innerBorder.Position = UDim2.new(0, 3, 0, 3)
+    innerBorder.BackgroundTransparency = 1
+    innerBorder.BorderSizePixel = 0
+
+    local innerStroke = Instance.new("UIStroke")
+    innerStroke.Color = Colors.Neon.Purple
+    innerStroke.Thickness = 1
+    innerStroke.Transparency = 0.6
+    innerStroke.Parent = innerBorder
+
+    local innerCorner = Instance.new("UICorner")
+    innerCorner.CornerRadius = UDim.new(0, 13)
+    innerCorner.Parent = innerBorder
+
+    -- Holographic effect
+    CreateHolographicEffect(mainFrame)
+
+    -- Header Section
+    local header = Instance.new("Frame")
+    header.Parent = mainFrame
+    header.Size = UDim2.new(1, 0, 0, 35)
+    header.BackgroundColor3 = Colors.Dark.Card
+    header.BackgroundTransparency = 0.3
+    header.BorderSizePixel = 0
+
+    local headerCorner = Instance.new("UICorner")
+    headerCorner.CornerRadius = UDim.new(0, 16)
+    headerCorner.Parent = header
+
+    -- Header gradient
+    local headerGradient = Instance.new("UIGradient")
+    headerGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Colors.Neon.Purple),
+        ColorSequenceKeypoint.new(1, Colors.Neon.Pink)
+    }
+    headerGradient.Rotation = 90
+    headerGradient.Parent = header
+
+    -- Status Indicator
+    local statusFrame = Instance.new("Frame")
+    statusFrame.Parent = header
+    statusFrame.Size = UDim2.new(0, 25, 0, 25)
+    statusFrame.Position = UDim2.new(0, 10, 0.5, -12.5)
+    statusFrame.BackgroundColor3 = petName and Colors.Status.Ready or Colors.Status.Waiting
+    statusFrame.BorderSizePixel = 0
+
+    local statusCorner = Instance.new("UICorner")
+    statusCorner.CornerRadius = UDim.new(0, 12.5)
+    statusCorner.Parent = statusFrame
+
+    local statusGlow = Instance.new("UIStroke")
+    statusGlow.Color = statusFrame.BackgroundColor3
+    statusGlow.Thickness = 2
+    statusGlow.Transparency = 0.5
+    statusGlow.Parent = statusFrame
+
+    -- Status Icon
+    local statusIcon = Instance.new("TextLabel")
+    statusIcon.Parent = statusFrame
+    statusIcon.Size = UDim2.new(1, 0, 1, 0)
+    statusIcon.BackgroundTransparency = 1
+    statusIcon.Text = petName and "✓" or "⏱"
+    statusIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
+    statusIcon.TextScaled = true
+    statusIcon.Font = Enum.Font.GothamBold
+
+    -- Header Title
+    local headerTitle = Instance.new("TextLabel")
+    headerTitle.Parent = header
+    headerTitle.Size = UDim2.new(1, -45, 1, 0)
+    headerTitle.Position = UDim2.new(0, 40, 0, 0)
+    headerTitle.BackgroundTransparency = 1
+    headerTitle.Text = "Etronix Hub [Crack]"
+    headerTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    headerTitle.TextStrokeTransparency = 0.5
+    headerTitle.TextStrokeColor3 = Colors.Neon.Cyan
+    headerTitle.TextScaled = true
+    headerTitle.Font = Enum.Font.GothamBold
+    headerTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Content Area
+    local content = Instance.new("Frame")
+    content.Parent = mainFrame
+    content.Size = UDim2.new(1, -20, 1, -55)
+    content.Position = UDim2.new(0, 10, 0, 45)
+    content.BackgroundTransparency = 1
+
+    -- Egg Name Display
+    local eggDisplay = Instance.new("Frame")
+    eggDisplay.Parent = content
+    eggDisplay.Size = UDim2.new(1, 0, 0, 25)
+    eggDisplay.BackgroundTransparency = 1
+
+    local eggLabel = Instance.new("TextLabel")
+    eggLabel.Parent = eggDisplay
+    eggLabel.Size = UDim2.new(1, -60, 1, 0)
+    eggLabel.BackgroundTransparency = 1
+    eggLabel.Text = string.upper(eggName or "UNKNOWN")
+    eggLabel.TextColor3 = Colors.Neon.Cyan
+    eggLabel.TextStrokeTransparency = 0
+    eggLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    eggLabel.TextScaled = true
+    eggLabel.Font = Enum.Font.GothamBold
+    eggLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Egg Type Badge
+    local eggBadge = Instance.new("Frame")
+    eggBadge.Parent = eggDisplay
+    eggBadge.Size = UDim2.new(0, 50, 0, 20)
+    eggBadge.Position = UDim2.new(1, -50, 0.5, -10)
+    eggBadge.BackgroundColor3 = Colors.Neon.Orange
+    eggBadge.BorderSizePixel = 0
+
+    local badgeCorner = Instance.new("UICorner")
+    badgeCorner.CornerRadius = UDim.new(0, 10)
+    badgeCorner.Parent = eggBadge
+
+    local badgeText = Instance.new("TextLabel")
+    badgeText.Parent = eggBadge
+    badgeText.Size = UDim2.new(1, 0, 1, 0)
+    badgeText.BackgroundTransparency = 1
+    badgeText.Text = "EGG"
+    badgeText.TextColor3 = Color3.fromRGB(0, 0, 0)
+    badgeText.TextScaled = true
+    badgeText.Font = Enum.Font.GothamBold
+
+    -- Pet Name Display
+    local petDisplay = Instance.new("Frame")
+    petDisplay.Parent = content
+    petDisplay.Size = UDim2.new(1, 0, 0, 25)
+    petDisplay.Position = UDim2.new(0, 0, 0, 30)
+    petDisplay.BackgroundTransparency = 1
+
+    local petLabel = Instance.new("TextLabel")
+    petLabel.Parent = petDisplay
+    petLabel.Size = UDim2.new(1, 0, 1, 0)
+    petLabel.BackgroundTransparency = 1
+    petLabel.Text = petName and string.upper(petName) or "ANALYZING..."
+    petLabel.TextColor3 = petName and Colors.Neon.Green or Colors.Status.Waiting
+    petLabel.TextStrokeTransparency = 0
+    petLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    petLabel.TextScaled = true
+    petLabel.Font = Enum.Font.Gotham
+    petLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Progress Bar (for waiting eggs)
+    local progressBar = nil
+    if not petName then
+        progressBar = Instance.new("Frame")
+        progressBar.Parent = content
+        progressBar.Size = UDim2.new(1, 0, 0, 4)
+        progressBar.Position = UDim2.new(0, 0, 1, -8)
+        progressBar.BackgroundColor3 = Colors.Dark.Border
+        progressBar.BorderSizePixel = 0
+
+        local progressCorner = Instance.new("UICorner")
+        progressCorner.CornerRadius = UDim.new(0, 2)
+        progressCorner.Parent = progressBar
+
+        local progressFill = Instance.new("Frame")
+        progressFill.Parent = progressBar
+        progressFill.Size = UDim2.new(0, 0, 1, 0)
+        progressFill.BackgroundColor3 = Colors.Status.Waiting
+        progressFill.BorderSizePixel = 0
+
+        local fillCorner = Instance.new("UICorner")
+        fillCorner.CornerRadius = UDim.new(0, 2)
+        fillCorner.Parent = progressFill
+
+        -- Animate progress bar
+        local progressTween = tweenService:Create(progressFill,
+            TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
+            {Size = UDim2.new(1, 0, 1, 0)}
+        )
+        progressTween:Play()
+    end
+
+    -- Pulsing animation for waiting status
+    if not petName then
+        local pulseInfo = TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+        local pulseTween = tweenService:Create(outerStroke, pulseInfo, {Transparency = 0.8})
+        pulseTween:Play()
+    end
+
+    -- Entrance animation
+    mainFrame.Size = UDim2.new(0, 0, 0, 0)
+    mainFrame.Rotation = 180
+    mainFrame.BackgroundTransparency = 1
+
+    local entranceInfo = TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    local entranceTween = tweenService:Create(mainFrame, entranceInfo, {
+        Size = UDim2.new(1, 0, 1, 0),
+        Rotation = 0,
+        BackgroundTransparency = 0.15
+    })
+    entranceTween:Play()
+
+    -- Create neon glow around the egg
+    local neonGlow = CreateNeonGlow(object:FindFirstChildWhichIsA("BasePart") or object, Colors.Neon.Cyan)
+
+    billboard.Parent = object
+    return billboard, petLabel, statusFrame, statusIcon, eggBadge, progressBar, neonGlow
+end
+
+local function UpdateEsp(objectId, petName)
+    local object = getObjectFromId(objectId)
+    if not object or not espCache[objectId] then return end
+
+    local espData = espCache[objectId]
+    if espData then
+        -- Update pet label
+        if espData.petLabel then
+            espData.petLabel.Text = string.upper(petName)
+            espData.petLabel.TextColor3 = Colors.Neon.Green
+        end
+        
+        -- Update status indicator
+        if espData.statusFrame then
+            espData.statusFrame.BackgroundColor3 = Colors.Status.Ready
+            local statusGlow = espData.statusFrame:FindFirstChild("UIStroke")
+            if statusGlow then
+                statusGlow.Color = Colors.Status.Ready
+            end
+        end
+        
+        if espData.statusIcon then
+            espData.statusIcon.Text = "✓"
+        end
+
+        -- Update badge
+        if espData.eggBadge then
+            espData.eggBadge.BackgroundColor3 = Colors.Status.Ready
+        end
+
+        -- Remove progress bar
+        if espData.progressBar then
+            espData.progressBar:Destroy()
+        end
+
+        -- Update neon glow
+        if espData.neonGlow then
+            espData.neonGlow.Color3 = Colors.Neon.Green
+        end
+
+        -- Success animation
+        local billboard = espData.billboard
+        if billboard then
+            local successInfo = TweenInfo.new(0.5, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out)
+            local successTween = tweenService:Create(billboard, successInfo, {
+                Size = UDim2.new(0, 350, 0, 130)
+            })
+            successTween:Play()
+            
+            successTween.Completed:Connect(function()
+                local returnInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local returnTween = tweenService:Create(billboard, returnInfo, {
+                    Size = UDim2.new(0, 320, 0, 120)
+                })
+                returnTween:Play()
+            end)
+        end
+    end
+end
+
+local function AddEsp(object)
+    if object:GetAttribute("OWNER") ~= localPlayer.Name then return end
+
+    local eggName = object:GetAttribute("EggName")
+    local petName = eggPets[object:GetAttribute("OBJECT_UUID")]
+    local objectId = object:GetAttribute("OBJECT_UUID")
+    if not objectId then return end
+
+    local billboard, petLabel, statusFrame, statusIcon, eggBadge, progressBar, neonGlow = 
+        CreateFuturisticEspGui(object, eggName, petName)
+
+game:GetService("StarterGui"):SetCore("SendNotification",{
+	Title = eggName .. " : "..petName, -- Required
+	Text = "", -- Required
+	Icon = "rbxassetid://122022293854293" -- Optional
+})
+    espCache[objectId] = {
+        billboard = billboard,
+        petLabel = petLabel,
+        statusFrame = statusFrame,
+        statusIcon = statusIcon,
+        eggBadge = eggBadge,
+        progressBar = progressBar,
+        neonGlow = neonGlow
+    }
+    activeEggs[objectId] = object
+end
+
+local function RemoveEsp(object)
+    if object:GetAttribute("OWNER") ~= localPlayer.Name then return end
+
+    local objectId = object:GetAttribute("OBJECT_UUID")
+    if espCache[objectId] then
+        local espData = espCache[objectId]
+        
+        -- Dramatic exit animation
+        if espData.billboard then
+            local mainFrame = espData.billboard:FindFirstChild("Frame")
+            if mainFrame then
+                local exitInfo = TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+                local exitTween = tweenService:Create(mainFrame, exitInfo, {
+                    Size = UDim2.new(0, 0, 0, 0),
+                    Rotation = -90,
+                    BackgroundTransparency = 1
+                })
+                exitTween:Play()
+                
+                exitTween.Completed:Connect(function()
+                    espData.billboard:Destroy()
+                end)
+            end
+        end
+        
+        -- Remove neon glow
+        if espData.neonGlow then
+            espData.neonGlow:Destroy()
+        end
+        
+        espCache[objectId] = nil
+    end
+    activeEggs[objectId] = nil
+end
+
+-- Initialize ESP for existing objects
+for _, object in collectionService:GetTagged("PetEggServer") do
+    task.spawn(AddEsp, object)
+end
+
+collectionService:GetInstanceAddedSignal("PetEggServer"):Connect(AddEsp)
+collectionService:GetInstanceRemovedSignal("PetEggServer"):Connect(RemoveEsp)
+
+local old
+old = hookfunction(getconnections(replicatedStorage.GameEvents.EggReadyToHatch_RE.OnClientEvent)[1].Function, newcclosure(function(objectId, petName)
+    UpdateEsp(objectId, petName)
+    return old(objectId, petName)
+end))
+
+        function Callback(answer)
+            if answer == "Rejoin" then
+local TeleportService = cloneref(game:GetService("TeleportService"))
+local Players = cloneref(game:GetService("Players"))
+PlaceId, JobId = game.PlaceId, game.JobId
+
+TeleportService:TeleportToPlaceInstance(PlaceId, JobId, Players.LocalPlayer)
+
+elseif answer == "Hop" then
+local TeleportService = cloneref(game:GetService("TeleportService"))
+local Players = cloneref(game:GetService("Players"))
+PlaceId, JobId = game.PlaceId, game.JobId
+
+TeleportService:Teleport(PlaceId, Players.LocalPlayer)
+            end
+        end
+        
+        local Bindable = Instance.new("BindableFunction")
+        Bindable.OnInvoke = Callback
+        
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Rejoin?";
+            Text = "Reset Egg";
+            Duration = 60;
+            Button1 = "Rejoin";
+            Button2 = "Hop";
+            Icon = "rbxassetid://";
+            Callback = Bindable
+        })
